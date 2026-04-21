@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>免费 LLM API 网关</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; font-size: 24px; margin-bottom: 24px; color: #38bdf8; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 16px; }
+        .card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+        .card h3 { color: #f1f5f9; margin-bottom: 8px; font-size: 16px; }
+        .card .provider { color: #94a3b8; font-size: 12px; margin-bottom: 12px; }
+        .card .info { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .tag { background: #334155; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .tag.free { background: #065f46; color: #6ee7b7; }
+        .tag.fast { background: #7c2d12; color: #fdba74; }
+        .tag.context { background: #1e3a5f; color: #7dd3fc; }
+        .btn { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        .btn:hover { background: #1d4ed8; }
+        .btn:active { background: #1e40af; }
+        .btn.success { background: #059669; }
+        .code-box { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-top: 12px; font-family: monospace; font-size: 13px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .status { display: flex; align-items: center; gap: 8px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; }
+        .status-dot.error { background: #ef4444; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+        .tab { padding: 8px 16px; background: #1e293b; border: 1px solid #334155; border-radius: 8px 8px 0 0; cursor: pointer; color: #94a3b8; }
+        .tab.active { background: #2563eb; color: white; border-color: #2563eb; }
+        .hidden { display: none; }
+        #test-input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; color: #e2e8f0; font-size: 14px; resize: vertical; min-height: 80px; }
+        #test-output { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; min-height: 100px; font-size: 13px; }
+        .settings-row { display: flex; gap: 12px; margin-bottom: 12px; align-items: center; }
+        .settings-row label { min-width: 80px; color: #94a3b8; }
+        .settings-row select, .settings-row input { flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 8px; color: #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🆓 免费 LLM API 网关</h1>
+            <div class="status">
+                <div class="status-dot" id="status-dot"></div>
+                <span id="status-text">检测中...</span>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('models')">模型列表</div>
+            <div class="tab" onclick="switchTab('test')">在线测试</div>
+            <div class="tab" onclick="switchTab('docs')">使用说明</div>
+        </div>
+        
+        <div id="tab-models">
+            <div class="grid" id="models-grid">
+                <div class="card"><h3>加载中...</h3></div>
+            </div>
+        </div>
+        
+        <div id="tab-test" class="hidden">
+            <div class="card">
+                <div class="settings-row">
+                    <label>选择模型：</label>
+                    <select id="model-select"></select>
+                </div>
+                <textarea id="test-input" placeholder="输入你的问题...">你好，请用一句话介绍自己</textarea>
+                <div style="margin-top: 12px;">
+                    <button class="btn" onclick="sendTest()">发送测试</button>
+                    <button class="btn" style="background: #475569; margin-left: 8px;" onclick="clearOutput()">清空</button>
+                </div>
+                <div id="test-output" style="margin-top: 12px;">等待测试...</div>
+            </div>
+        </div>
+        
+        <div id="tab-docs" class="hidden">
+            <div class="card">
+                <h3>📡 API 接口</h3>
+                <div class="code-box">
+Base URL: <span id="base-url"></span>
+
+# 调用示例 (curl)
+curl <span id="curl-url"></span>/v1/chat/completions \
+  -H "Authorization: Bearer sk-free-llm-gateway" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "groq/llama-3.3-70b-versatile",
+    "messages": [{"role": "user", "content": "你好"}],
+    "max_tokens": 100
+  }'
+
+# Python 示例
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk-free-llm-gateway",
+    base_url="<span id="python-url"></span>/v1"
+)
+
+response = client.chat.completions.create(
+    model="gemini/gemini-2.5-flash",
+    messages=[{"role": "user", "content": "你好"}]
+)
+print(response.choices[0].message.content)
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top: 16px;">
+                <h3>🔑 免费 API Key 申请地址</h3>
+                <div style="margin-top: 12px;">
+                    <p><strong>Google Gemini</strong> - <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #38bdf8;">申请地址</a> (免费额度最高)</p>
+                    <p style="margin-top: 8px;"><strong>Mistral AI</strong> - <a href="https://console.mistral.ai/api-keys" target="_blank" style="color: #38bdf8;">申请地址</a> (10亿 tokens/月)</p>
+                    <p style="margin-top: 8px;"><strong>Groq</strong> - <a href="https://console.groq.com/keys" target="_blank" style="color: #38bdf8;">申请地址</a> (推理最快)</p>
+                    <p style="margin-top: 8px;"><strong>Cerebras</strong> - <a href="https://cloud.cerebras.ai/" target="_blank" style="color: #38bdf8;">申请地址</a> (超快推理)</p>
+                    <p style="margin-top: 8px;"><strong>Cohere</strong> - <a href="https://dashboard.cohere.com/api-keys" target="_blank" style="color: #38bdf8;">申请地址</a> (1000次/月)</p>
+                    <p style="margin-top: 8px;"><strong>OpenRouter</strong> - <a href="https://openrouter.ai/settings/keys" target="_blank" style="color: #38bdf8;">申请地址</a> (多个免费模型)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+const API_BASE = window.location.origin;
+const API_KEY = 'sk-free-llm-gateway';
+
+document.getElementById('base-url').textContent = API_BASE;
+document.getElementById('curl-url').textContent = API_BASE;
+document.getElementById('python-url').textContent = API_BASE;
+
+const MODEL_INFO = {
+    'gemini/gemini-2.5-flash': { provider: 'Google Gemini', context: '1M', speed: '中速', desc: '最强免费模型' },
+    'gemini/gemini-2.5-flash-lite': { provider: 'Google Gemini', context: '1M', speed: '快速', desc: '轻量版，速度更快' },
+    'mistral/mistral-small-latest': { provider: 'Mistral AI', context: '256K', speed: '快速', desc: '欧洲厂商，隐私友好' },
+    'mistral/mistral-medium-latest': { provider: 'Mistral AI', context: '128K', speed: '中速', desc: '更强推理能力' },
+    'groq/llama-3.3-70b-versatile': { provider: 'Groq', context: '128K', speed: '极快', desc: 'Llama 最强开源模型' },
+    'groq/llama-3.1-8b-instant': { provider: 'Groq', context: '128K', speed: '极快', desc: '轻量快速' },
+    'groq/deepseek-r1-distill-llama-70b': { provider: 'Groq', context: '128K', speed: '极快', desc: 'DeepSeek 推理模型' },
+    'cerebras/llama3.3-70b': { provider: 'Cerebras', context: '128K', speed: '极快', desc: '超快推理' },
+    'cohere/command-a': { provider: 'Cohere', context: '256K', speed: '中速', desc: '最新旗舰模型' },
+    'cohere/command-r': { provider: 'Cohere', context: '128K', speed: '快速', desc: '平衡型模型' },
+    'openrouter/meta-llama/llama-3.1-8b-instruct:free': { provider: 'OpenRouter', context: '128K', speed: '快速', desc: 'Llama 8B 免费' },
+    'openrouter/google/gemma-3-27b-it:free': { provider: 'OpenRouter', context: '128K', speed: '中速', desc: 'Google Gemma 27B 免费' },
+    'zhipu/glm-4-flash': { provider: '智谱 AI', context: '200K', speed: '快速', desc: '中文能力最强' }
+};
+
+async function loadModels() {
+    try {
+        const res = await fetch(`${API_BASE}/v1/models`, {
+            headers: { 'Authorization': `Bearer ${API_KEY}` }
+        });
+        const data = await res.json();
+        const models = data.data || [];
+        
+        document.getElementById('status-dot').className = 'status-dot';
+        document.getElementById('status-text').textContent = '运行正常';
+        
+        const grid = document.getElementById('models-grid');
+        const select = document.getElementById('model-select');
+        grid.innerHTML = '';
+        select.innerHTML = '';
+        
+        models.forEach(m => {
+            const info = MODEL_INFO[m.id] || { provider: '未知', context: '-', speed: '-', desc: '' };
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <h3>${m.id}</h3>
+                <div class="provider">${info.provider}</div>
+                <div class="info">
+                    <span class="tag free">免费</span>
+                    <span class="tag context">${info.context} 上下文</span>
+                    <span class="tag fast">${info.speed}</span>
+                </div>
+                <p style="color: #94a3b8; font-size: 13px;">${info.desc}</p>
+                <button class="btn" style="margin-top: 12px;" onclick="copyModelName('${m.id}')">复制模型名</button>
+            `;
+            grid.appendChild(card);
+            
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = `${info.provider} - ${m.id.split('/').pop()}`;
+            select.appendChild(opt);
+        });
+    } catch (e) {
+        document.getElementById('status-dot').className = 'status-dot error';
+        document.getElementById('status-text').textContent = '连接失败';
+        console.error(e);
+    }
+}
+
+function copyModelName(name) {
+    navigator.clipboard.writeText(name);
+    alert('已复制: ' + name);
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('hidden'));
+    document.querySelector(`.tab[onclick*="${tab}"]`).classList.add('active');
+    document.getElementById(`tab-${tab}`).classList.remove('hidden');
+}
+
+async function sendTest() {
+    const model = document.getElementById('model-select').value;
+    const prompt = document.getElementById('test-input').value;
+    const output = document.getElementById('test-output');
+    
+    output.textContent = '思考中...';
+    
+    try {
+        const res = await fetch(`${API_BASE}/v1/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: [{ role: 'user', content: prompt }],
+                max_tokens: 500
+            })
+        });
+        const data = await res.json();
+        if (data.error) {
+            output.textContent = '❌ 错误: ' + data.error.message;
+        } else {
+            output.textContent = data.choices[0].message.content;
+        }
+    } catch (e) {
+        output.textContent = '❌ 请求失败: ' + e.message;
+    }
+}
+
+function clearOutput() {
+    document.getElementById('test-output').textContent = '等待测试...';
+}
+
+loadModels();
+</script>
+</body>
+</html>

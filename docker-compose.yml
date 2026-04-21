@@ -24,6 +24,7 @@ services:
       - DATABASE_URL=postgresql://litellm:litellm2026@db:5432/litellm
     volumes:
       - ./litellm_config.yaml:/app/config.yaml
+      - ./ui/index.html:/app/ui/index.html
     depends_on:
       - db
     command:
