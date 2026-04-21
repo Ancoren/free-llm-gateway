@@ -1,6 +1,17 @@
 version: "3.8"
 
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: litellm-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=litellm
+      - POSTGRES_USER=litellm
+      - POSTGRES_PASSWORD=litellm2026
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
   litellm:
     image: ghcr.io/berriai/litellm:main-latest
     container_name: free-llm-gateway
@@ -9,15 +20,20 @@ services:
       - "4000:4000"
     env_file:
       - .env
+    environment:
+      - DATABASE_URL=postgresql://litellm:litellm2026@db:5432/litellm
     volumes:
       - ./litellm_config.yaml:/app/config.yaml
-      - ./litellm.db:/app/litellm.db
+    depends_on:
+      - db
     command:
       - "--config=/app/config.yaml"
       - "--port=4000"
-      - "--detailed_debug=false"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+
+volumes:
+  pgdata:
